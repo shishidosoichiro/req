@@ -1,0 +1,34 @@
+{
+  "name": "req",
+  "version": "0.0.1",
+  "description": "Functional HTTP client for gulp",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha",
+    "cover": "istanbul cover _mocha",
+    "coveralls": "npm run cover -- --report lcovonly && cat ./coverage/lcov.info | coveralls"
+  },
+  "keywords": [
+    "http",
+    "url",
+    "request",
+    "gulp",
+    "stream",
+    "functional"
+  ],
+  "author": "Soichiro Shishido",
+  "license": "MIT",
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "coveralls": "^2.11.9",
+    "gulp": "^3.9.1",
+    "gulp-istanbul": "^0.10.4",
+    "gulp-mocha": "^2.2.0",
+    "gulp-plumber": "^1.1.0",
+    "istanbul": "^0.4.3",
+    "mocha": "^2.5.3"
+  },
+  "dependencies": {
+    "lodash": "^4.13.1"
+  }
+}
