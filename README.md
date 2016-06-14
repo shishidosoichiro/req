@@ -3,3 +3,30 @@
 [![Coverage Status](https://coveralls.io/repos/github/shishidosoichiro/req/badge.svg?branch=master)](https://coveralls.io/github/shishidosoichiro/req?branch=master)
 
 Functional HTTP client for gulp
+
+## How to use
+
+### Stream style
+
+```js
+var Req = require('req');
+
+var req = Req('http://localhost:8080/api');
+
+src('./data/user/*.json')
+.pipe(json())
+.pipe(req.post('user'))
+```
+
+### Promise style
+
+```js
+req.post('user', {username: 'user1', ...})
+.then(console.log.bind(console, 'done.'))
+```
+
+## Why
+
+### extend Writable
+
+### extend Promise
