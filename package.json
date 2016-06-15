@@ -19,6 +19,7 @@
   "author": "Soichiro Shishido",
   "license": "MIT",
   "devDependencies": {
+    "body-parser": "^1.15.1",
     "chai": "^3.5.0",
     "coveralls": "^2.11.9",
     "express": "^4.13.4",
