@@ -5,6 +5,7 @@ var expect = chai.expect;
 var should = chai.should();
 var express = require('express')
 var bodyParser = require('body-parser');
+var _ = require('highland');
 
 var server = express()
 .use(bodyParser.json())
@@ -35,11 +36,12 @@ describe('req', function(){
 			var req = Req('http://localhost:3000/api');
 
 			var data = [{username: 'user1'}, {username: 'user2'}];
-			array(data)
+			_(data)
 			.pipe(req.post('api/user'))
-			.on('end', function(){
-				done()
-			})
+			.pipe(_.pipeline(_.map(function(x){
+				console.log('done!!!!')
+				return x;
+			})))
 			//.then(function(res){
 			//	res.body.should.deep.equal(data[0])
 			//})

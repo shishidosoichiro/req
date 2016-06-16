@@ -1,17 +1,36 @@
 'use strict';
 
 var stream = require('stream');
-var Writable = stream.Writable;
 var Transform = stream.Transform;
 var http = require('http');
 var util = require('util');
 var Url = require('url2');
 var _ = require('lodash');
+//var _ = require('highland');
 
 var App = module.exports = function(url){
 	if (!(this instanceof App)) return new App(url);
 	this.url = Url(url);
 	this.post = this.post.bind(this);
+};
+
+var ObjectTransform = function(options){
+	options = _.defaults({objectMode: true}, options);
+	Transform.call(this, options);
+};
+util.inherits(ObjectTransform, Transform);
+
+var map = function(callback){
+	var transform = new ObjectTransform({
+		transform: function(object, encoding, next){
+			var push = function(object){
+				transform.push(object);
+				next();
+			};
+			callback(object, push);
+		}
+	});
+	return transform;
 };
 
 /**
@@ -58,20 +77,9 @@ App.prototype.post = function(url, data){
 	// var promise = curried(object);
 	else if (arguments.length === 1 && typeof arguments[0] === 'string') {
 		url = arguments[0];
-		var write = function(data){
-			return this.post(url, data);
-		}.bind(this);
-		// extend Writable interface.
-		var Post = function(){
-			Writable.call(this, {objectMode: true, write: write});
-		};
-		util.inherits(Post, Writable);
-		var post = new Post();
-		for (var i in post) {
-			if (typeof post[i] === 'function') write[i] = post[i].bind(post);
-			else write[i] = post[i];
-		}
-		return write;
+		return map(function(data, next){
+			this.post(url, data).then(next)
+		}.bind(this));
 	}
 	// Invalid arguments.
 	else throw Error('invalid arguments.');
@@ -87,7 +95,7 @@ App.prototype.post = function(url, data){
 			res.setEncoding(options.encoding);
 			var data = [];
 			res.on('data', function(chunk){
-				data = data.push(chunk);
+				data.push(chunk);
 			});
 			res.on('end', function(){
 				resolve(data.join(''));
