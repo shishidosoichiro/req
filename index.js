@@ -67,6 +67,9 @@ App.prototype.post = function(url, data){
 	if (arguments.length === 2 && typeof arguments[0] === 'string' && typeof arguments[1] === 'object') {
 		// Follows 'if ... else ...' clauses.
 	}
+	else if (arguments.length === 2 && typeof arguments[0] === 'string' && typeof arguments[1] === 'string') {
+		// Follows 'if ... else ...' clauses.
+	}
 	// Return promise pattren omitting url.
 	// var promise = req.post(object);
 	else if (arguments.length === 1 && typeof arguments[0] === 'object') {
@@ -125,6 +128,10 @@ App.prototype.post = function(url, data){
 		// write data to request body
 		if (typeof data === 'object') {
 			req.write(JSON.stringify(data));
+			req.end();
+		}
+		else if (typeof data === 'string') {
+			req.write(data);
 			req.end();
 		}
 		else reject(new Error(`not supported data type: ${typeof data}`));

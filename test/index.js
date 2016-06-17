@@ -8,9 +8,13 @@ var bodyParser = require('body-parser');
 var es = require('event-stream');
 
 var server = express()
-.use(bodyParser.json())
-.use(bodyParser.urlencoded({ extended: true }))
+.use(bodyParser.json({ type: 'application/json' }))
+.use(bodyParser.text({ type: 'text/plain' }))
 .post('/api/user', function(req, res){
+	res.send(req.body);
+})
+.post('/api/echo', function(req, res){
+	res.setHeader('Content-Type', 'text/plain; charset=UTF-8');
 	res.send(req.body);
 })
 .listen(3000);
@@ -21,12 +25,21 @@ describe('req', function(){
 	describe('#contentType', function(){
 		it('should set and get \'Content-Type\' header.', function(){
 			var req = Req('http://localhost:3000/api');
-			req.contentType('text/html').should.equal(req);
-			req.contentType().should.equal('text/html');
+			req.contentType('text/plain').should.equal(req);
+			req.contentType().should.equal('text/plain');
 		});
 		it('should is set \'application/json\' as default', function(){
 			var req = Req('http://localhost:3000/api');
 			req.contentType().should.equal('application/json');
+		});
+		it('should be chain method', function(done){
+			var req = Req('http://localhost:3000/api');
+			req.contentType('text/plain')
+			.post('echo', 'hello, world.')
+			.then(function(res){
+				res.body.should.equal('hello, world.');
+			})
+			.then(done, done)
 		});
 	});
 
@@ -60,7 +73,7 @@ describe('req', function(){
 				.then(function(res){
 					res.body.should.deep.equal(data[0]);
 				})
-				.then(done);
+				.then(done, done);
 			});
 
 			it('should return Promise and post data to a server.', function(done){
@@ -69,7 +82,7 @@ describe('req', function(){
 				.then(function(res){
 					res.body.should.deep.equal(data[0]);
 				})
-				.then(done);
+				.then(done, done);
 			});
 
 			it('should be a curried function and post data to a server.', function(done){
@@ -77,9 +90,35 @@ describe('req', function(){
 				.then(function(res){
 					res.body.should.deep.equal(data[0]);
 				})
-				.then(done);
+				.then(done, done);
 			});
 
+			it('should be a Transform and post data to a server.', function(done){
+				var i = 0;
+				es.readArray(data)
+				.pipe(post)
+				.pipe(es.map(function(res, cb){
+					res.body.should.deep.equal(data[i++]);
+					cb(null, res);
+				}))
+				.on('error', done)
+				.on('end', done)
+			});
+		});
+	})
+	describe('(text)', function(){
+		describe('#post', function(){
+			var data = ['text1', 'text2'];
+			var req = Req('http://localhost:3000/api').contentType('text/plain');
+			var post = req.post('echo');
+
+			it('should return Promise and post data to a server.', function(done){
+				req.post('echo', data[0])
+				.then(function(res){
+					res.body.should.deep.equal(data[0]);
+				})
+				.then(done, done);
+			});
 			it('should be a Transform and post data to a server.', function(done){
 				var i = 0;
 				es.readArray(data)
