@@ -76,6 +76,11 @@ App.prototype.post = function(url, data){
 		data = arguments[0];
 		url = '';
 	}
+	// Return promise pattren omitting url.
+	// var promise = req.post(object);
+	else if (arguments.length === 0) {
+		return this.post('');
+	}
 	// Return curried pattren with Writable.
 	// var promise = req.post(string);
 	// var writable = req.post(string);
