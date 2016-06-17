@@ -1,36 +1,38 @@
 'use strict';
 
 var stream = require('stream');
-var Transform = stream.Transform;
 var http = require('http');
 var util = require('util');
 var Url = require('url2');
 var _ = require('lodash');
-//var _ = require('highland');
+var es = require('event-stream');
+var contentType = require('content-type');
+//var cookie = require('cookie');
+
+var defaults = {
+	headers: {
+		'Content-Type': 'application/json'
+	}
+};
 
 var App = module.exports = function(url){
 	if (!(this instanceof App)) return new App(url);
 	this.url = Url(url);
 	this.post = this.post.bind(this);
+	this._headers = _.cloneDeep(defaults.headers);
 };
 
-var ObjectTransform = function(options){
-	options = _.defaults({objectMode: true}, options);
-	Transform.call(this, options);
+App.prototype.contentType = function(type){
+	if (type === undefined) return this._headers['Content-Type'];
+	this._headers['Content-Type'] = type;
+	return this;
 };
-util.inherits(ObjectTransform, Transform);
 
-var map = function(callback){
-	var transform = new ObjectTransform({
-		transform: function(object, encoding, next){
-			var push = function(object){
-				transform.push(object);
-				next();
-			};
-			callback(object, push);
-		}
-	});
-	return transform;
+App.prototype.headers = function(key, value){
+	if (key === undefined) return this._headers;
+	else if (typeof key === 'object') this._headers = key;
+	else this._headers[key] = value;
+	return this;
 };
 
 /**
@@ -68,7 +70,8 @@ App.prototype.post = function(url, data){
 	// Return promise pattren omitting url.
 	// var promise = req.post(object);
 	else if (arguments.length === 1 && typeof arguments[0] === 'object') {
-		return this.post('', arguments[0]);
+		data = arguments[0];
+		url = '';
 	}
 	// Return curried pattren with Writable.
 	// var promise = req.post(string);
@@ -77,37 +80,53 @@ App.prototype.post = function(url, data){
 	// var promise = curried(object);
 	else if (arguments.length === 1 && typeof arguments[0] === 'string') {
 		url = arguments[0];
-		return map(function(data, next){
-			this.post(url, data).then(next)
-		}.bind(this));
+		var post = this.post.bind(this, url);
+		var transform = es.map(function(data, next){
+			post(data).then(function(data){
+				next(null, data);
+			})
+		});
+		// return curried function.
+		return _.assignIn(post, transform);
 	}
 	// Invalid arguments.
 	else throw Error('invalid arguments.');
 
 	// post a request.
-	var urlObj = this.url.resolve(url);
-	var reqestOptions = _.defaults({method: 'POST', headers: {'Content-Type': 'application/json'}}, urlObj);
-	var options = _.defaults(this.options || {}, {encoding: 'utf8'});
+	var urlObj = this.url.cd(url);
+	var reqestOptions = _.defaults({method: 'POST', headers: this._headers}, urlObj);
 	return new Promise(function(resolve, reject){
 		var req = http.request(reqestOptions, function(res){
 			// console.log(`STATUS: ${res.statusCode}`);
-			// console.log(`HEADERS: ${JSON.stringify(res.headers)}`);
-			res.setEncoding(options.encoding);
-			var data = [];
-			res.on('data', function(chunk){
-				data.push(chunk);
-			});
-			res.on('end', function(){
-				resolve(data.join(''));
-			});
+			var type = contentType.parse(res);
+			if (type.parameters.charset) res.setEncoding(type.parameters.charset);
+
+			var chunks = [];
+			var push = chunks.push.bind(chunks);
+			var join = chunks.join.bind(chunks, '');
+			resolve = resolve.bind(null, res);
+			var body = _.set.bind(_, res, 'body');
+
+			// json
+			if (_.includes(['application/json', 'text/javascript+json'], type.type)) {
+				res.on('data', push);
+				res.on('end', _.flow(join, JSON.parse, body, resolve));
+			}
+			// text
+			else if (/^text\//.test(type.type)) {
+				res.on('data', push);
+				res.on('end', _.flow(join, body, resolve));
+			}
+			else reject(new Error(`not supported Content-Type: ${type.type}`))
 		});
 
-		req.on('error', function(e){
-			reject(e);
-		});
+		req.on('error', reject);
 
 		// write data to request body
-		req.write(JSON.stringify(data));
-		req.end();
+		if (typeof data === 'object') {
+			req.write(JSON.stringify(data));
+			req.end();
+		}
+		else reject(new Error(`not supported data type: ${typeof data}`));
 	});
 };
