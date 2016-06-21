@@ -6,7 +6,7 @@ var util = require('util');
 var Url = require('url2');
 var _ = require('lodash');
 var es = require('event-stream');
-var contentType = require('content-type');
+var ContentType = require('content-type');
 //var cookie = require('cookie');
 
 var defaults = {
@@ -102,36 +102,47 @@ App.prototype.post = function(url, data){
 
 	// post a request.
 	var urlObj = this.url.cd(url);
+	if (this._headers['Content-Type'] === 'application/x-www-form-urlencoded') {
+		urlObj.query = data;
+	}
 	var reqestOptions = _.defaults({method: 'POST', headers: this._headers}, urlObj);
 	return new Promise(function(resolve, reject){
 		var req = http.request(reqestOptions, function(res){
 			// console.log(`STATUS: ${res.statusCode}`);
-			var type = contentType.parse(res);
-			if (type.parameters.charset) res.setEncoding(type.parameters.charset);
-
+			//console.log(res.headers)
 			var chunks = [];
 			var push = chunks.push.bind(chunks);
 			var join = chunks.join.bind(chunks, '');
 			resolve = resolve.bind(null, res);
 			var body = _.set.bind(_, res, 'body');
 
-			// json
-			if (_.includes(['application/json', 'text/javascript+json'], type.type)) {
-				res.on('data', push);
-				res.on('end', _.flow(join, JSON.parse, body, resolve));
+			if (res.headers['Content-Type']) {
+				var contentType = ContentType.parse(res);
+				if (contentType.parameters.charset) res.setEncoding(contentType.parameters.charset);
+				// json
+				if (_.includes(['application/json', 'text/javascript+json'], contentType.type)) {
+					res.on('data', push);
+					res.on('end', _.flow(join, JSON.parse, body, resolve));
+				}
+				// text
+				else if (/^text\//.test(contentType.type)) {
+					res.on('data', push);
+					res.on('end', _.flow(join, body, resolve));
+				}
+				else reject(new Error(`not supported Content-Type: ${contentType.type}`))
 			}
-			// text
-			else if (/^text\//.test(type.type)) {
+			else {
 				res.on('data', push);
 				res.on('end', _.flow(join, body, resolve));
 			}
-			else reject(new Error(`not supported Content-Type: ${type.type}`))
 		});
 
 		req.on('error', reject);
 
+		if (this._headers['Content-Type'] === 'application/x-www-form-urlencoded') {
+		}
 		// write data to request body
-		if (typeof data === 'object') {
+		else if (typeof data === 'object') {
 			req.write(JSON.stringify(data));
 			req.end();
 		}
