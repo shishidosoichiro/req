@@ -7,11 +7,20 @@ var Url = require('url2');
 var _ = require('lodash');
 var es = require('event-stream');
 var ContentType = require('content-type');
-//var cookie = require('cookie');
+var CookieJar = require('cookiejar').CookieJar;
+var CookieAccess = require('cookiejar').CookieAccessInfo;
 
 var defaults = {
 	headers: {
 		'Content-Type': 'application/json'
+	}
+};
+var jsonify = function(body){
+	try {
+		return JSON.parse(body);
+	}
+	catch(e){
+		return body;
 	}
 };
 
@@ -20,6 +29,7 @@ var App = module.exports = function(url){
 	this.url = Url(url);
 	this.post = this.post.bind(this);
 	this._headers = _.cloneDeep(defaults.headers);
+	this.jar = new CookieJar;
 };
 
 App.prototype.contentType = function(type){
@@ -105,6 +115,10 @@ App.prototype.post = function(url, data){
 	if (this._headers['Content-Type'] === 'application/x-www-form-urlencoded') {
 		urlObj.query = data;
 	}
+
+	// attach cookies.
+	attachCookies(this.jar, urlObj, this._headers);
+
 	var reqestOptions = _.defaults({method: 'POST', headers: this._headers}, urlObj);
 	return new Promise(function(resolve, reject){
 		var req = http.request(reqestOptions, function(res){
@@ -115,6 +129,9 @@ App.prototype.post = function(url, data){
 			var join = chunks.join.bind(chunks, '');
 			resolve = resolve.bind(null, res);
 			var body = _.set.bind(_, res, 'body');
+
+			// save cookies.
+			saveCookies(this.jar, res);
 
 			if (res.headers['Content-Type']) {
 				var contentType = ContentType.parse(res);
@@ -133,9 +150,9 @@ App.prototype.post = function(url, data){
 			}
 			else {
 				res.on('data', push);
-				res.on('end', _.flow(join, body, resolve));
+				res.on('end', _.flow(join, jsonify, body, resolve));
 			}
-		});
+		}.bind(this));
 
 		req.on('error', reject);
 
@@ -152,4 +169,29 @@ App.prototype.post = function(url, data){
 
 		req.end();
 	}.bind(this));
+};
+
+/**
+ * Save the cookies in the given `res` to
+ * the agent's cookie jar for persistence.
+ *
+ * @param {Response} res
+ * @api private
+ */
+
+var saveCookies = function(jar, res){
+	var cookies = res.headers['set-cookie'];
+	if (cookies) jar.setCookies(cookies);
+};
+
+/**
+ * Attach cookies when available to the given `req`.
+ *
+ * @param {Request} req
+ * @api private
+ */
+var attachCookies = function(jar, url, headers){
+	var access = CookieAccess(url.hostname, url.pathname, 'https:' == url.protocol);
+	var cookie = jar.getCookies(access).toValueString();
+	headers['Cookie'] = cookie;
 };
