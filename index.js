@@ -144,12 +144,12 @@ App.prototype.post = function(url, data){
 		// write data to request body
 		else if (typeof data === 'object') {
 			req.write(JSON.stringify(data));
-			req.end();
 		}
 		else if (typeof data === 'string') {
 			req.write(data);
-			req.end();
 		}
-		else reject(new Error(`not supported data type: ${typeof data}`));
-	});
+		else return reject(new Error(`not supported data type: ${typeof data}`));
+
+		req.end();
+	}.bind(this));
 };
