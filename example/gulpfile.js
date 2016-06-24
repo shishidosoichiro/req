@@ -4,17 +4,6 @@ var _ = require('lodash');
 var path = require('path');
 
 var Req = require('req');
-var root = Req('http://localhost:8080/icon')
-var security = root.cd('j_spring_security_check').contentType('application/x-www-form-urlencoded');
-var sysadmin = root.cd('services/systemservice').contentType('application/json');
-
-var props = ['req.method', 'req.path', 'req._headers.cookie', 'statusCode', 'headers', 'body'];
-var log = flow(
-	_.bind(_.at, _, _, props),
-	_.bind(_.zipObject, _, props),
-	_.bind(JSON.stringify, JSON, _, null, 2),
-	console.log.bind(console)
-);
 
 var slice = function(array, begin, end){
 	return Array.prototype.slice.call(array, begin, end);
@@ -34,6 +23,18 @@ var flow = function(functions){
 		}, arg);
 	};
 };
+
+var root = Req('http://localhost:8080/icon')
+var security = root.cd('j_spring_security_check').contentType('application/x-www-form-urlencoded');
+var sysadmin = root.cd('services/systemservice').contentType('application/json');
+console.log(security.url)
+var props = ['req.method', 'req.path', 'req._headers.cookie', 'statusCode', 'headers', 'body'];
+var log = flow(
+	_.bind(_.at, _, _, props),
+	_.bind(_.zipObject, _, props),
+	_.bind(JSON.stringify, JSON, _, null, 2),
+	console.log.bind(console)
+);
 
 /*
 1. ファイルの追加・変更を検知する
@@ -69,12 +70,12 @@ gulp.task('site', ['login'], function(){
 	));
 });
 
-var login = function(){
+var login = function(path){
 	return flow(
 		readFileSync,
 		String,
 		JSON.parse,
-		security.post,
+		security.post
 	)(path || 'auth.json');
 };
 

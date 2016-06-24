@@ -101,12 +101,12 @@ App.prototype.post = function(url, data){
 	// var promise = req.post(object);
 	else if (arguments.length === 1 && typeof arguments[0] === 'object') {
 		data = arguments[0];
-		url = '';
+		url = undefined;
 	}
 	// Return promise pattren omitting url.
 	// var promise = req.post(object);
 	else if (arguments.length === 0) {
-		return this.post('');
+		// continue.
 	}
 	// Return curried pattren with Writable.
 	// var promise = req.post(string);
@@ -128,7 +128,7 @@ App.prototype.post = function(url, data){
 	else throw Error('invalid arguments.');
 
 	// set url.
-	var urlObj = this.url.cd(url);
+	var urlObj = this.url.cd(url)
 	if (this._headers['Content-Type'] === 'application/x-www-form-urlencoded') {
 		urlObj.query = data;
 	}

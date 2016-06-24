@@ -1,13 +1,5 @@
 {
-  "name": "example",
-  "version": "1.0.0",
-  "description": "",
-  "main": "gulpfile.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
-  "license": "ISC",
+  "private": "true",
   "devDependencies": {
     "lodash": "^4.13.1"
   }
