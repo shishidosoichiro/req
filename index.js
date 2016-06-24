@@ -24,12 +24,18 @@ var jsonify = function(body){
 	}
 };
 
-var App = module.exports = function(url){
-	if (!(this instanceof App)) return new App(url);
-	this.url = Url(url);
+var App = module.exports = function(url, options){
+	if (!(this instanceof App)) return new App(url, options);
+
+	options = _.defaultsDeep(options || {}, defaults);
+	this.url = url instanceof Url ? url : Url(url);
+
+	// inherit context.
+	this._headers = _.cloneDeep(options.headers);
+	this.jar = options.jar || new CookieJar();
+
+	// bind
 	this.post = this.post.bind(this);
-	this._headers = _.cloneDeep(defaults.headers);
-	this.jar = new CookieJar;
 };
 
 App.prototype.contentType = function(type){
@@ -43,6 +49,10 @@ App.prototype.headers = function(key, value){
 	else if (typeof key === 'object') this._headers = key;
 	else this._headers[key] = value;
 	return this;
+};
+
+App.prototype.cd = function(to){
+	return App(this.url.cd(to), {jar: this.jar, headers: this.headers()});
 };
 
 /**
@@ -70,15 +80,22 @@ App.prototype.headers = function(key, value){
  * var promise = curried(object);
  * ```
  *
+ * If string aruments is number, it is converted to string.
+ *
  */
 App.prototype.post = function(url, data){
+	if (typeof arguments[0] === 'number') arguments[0] = String(arguments[0]);
+	if (typeof arguments[1] === 'number') arguments[1] = String(arguments[1]);
+
 	// Return promise pattern.
 	// var promise = req.post(string, object);
 	if (arguments.length === 2 && typeof arguments[0] === 'string' && typeof arguments[1] === 'object') {
-		// Follows 'if ... else ...' clauses.
+		url = arguments[0];
+		data = arguments[1];
 	}
 	else if (arguments.length === 2 && typeof arguments[0] === 'string' && typeof arguments[1] === 'string') {
-		// Follows 'if ... else ...' clauses.
+		url = arguments[0];
+		data = arguments[1];
 	}
 	// Return promise pattren omitting url.
 	// var promise = req.post(object);
@@ -110,7 +127,7 @@ App.prototype.post = function(url, data){
 	// Invalid arguments.
 	else throw Error('invalid arguments.');
 
-	// post a request.
+	// set url.
 	var urlObj = this.url.cd(url);
 	if (this._headers['Content-Type'] === 'application/x-www-form-urlencoded') {
 		urlObj.query = data;
@@ -119,6 +136,7 @@ App.prototype.post = function(url, data){
 	// attach cookies.
 	attachCookies(this.jar, urlObj, this._headers);
 
+	// post a request.
 	var reqestOptions = _.defaults({method: 'POST', headers: this._headers}, urlObj);
 	return new Promise(function(resolve, reject){
 		var req = http.request(reqestOptions, function(res){

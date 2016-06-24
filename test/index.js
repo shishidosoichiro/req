@@ -13,6 +13,10 @@ var server = express()
 .post('/api/user', function(req, res){
 	res.send(req.body);
 })
+.post('/api/user/:id', function(req, res){
+	req.body.id = parseInt(req.params.id);
+	res.send(req.body);
+})
 .post('/api/echo', function(req, res){
 	res.setHeader('Content-Type', 'text/plain; charset=UTF-8');
 	res.send(req.body);
@@ -62,6 +66,22 @@ describe('req', function(){
 		});
 	});
 
+	describe('#cd', function(){
+		it('should create req object that changes pathname ant keeps context.', function(){
+			var root = Req('http://localhost:3000/api').contentType('text/plain');
+			var echo = root.cd('echo');
+			var user = root.cd('user').contentType('application/json');
+			root.url.href.should.equal('http://localhost:3000/api');
+			root.contentType().should.equal('text/plain');
+			echo.url.href.should.equal('http://localhost:3000/api/echo');
+			echo.contentType().should.equal('text/plain');
+			user.url.href.should.equal('http://localhost:3000/api/user');
+			user.contentType().should.equal('application/json');
+			echo.jar.should.deep.equal(root.jar);
+			user.jar.should.deep.equal(root.jar);
+		});
+	});
+
 	describe('(json)', function(){
 		describe('#post', function(){
 			var data = [{username: 'user1'}, {username: 'user2'}];
@@ -71,6 +91,17 @@ describe('req', function(){
 			it('should return Promise and post data to a server.', function(done){
 				req.post('user', data[0])
 				.then(function(res){
+					res.body.should.deep.equal(data[0]);
+				})
+				.then(done, done);
+			});
+
+			it('should regard number as string.', function(done){
+				var user = req.cd('user');
+				user.post(12345, data[0])
+				.then(function(res){
+					should.equal(res.body.id, 12345);
+					delete res.body.id;
 					res.body.should.deep.equal(data[0]);
 				})
 				.then(done, done);
