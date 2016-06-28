@@ -1,6 +1,0 @@
-{
-  "private": "true",
-  "devDependencies": {
-    "lodash": "^4.13.1"
-  }
-}
