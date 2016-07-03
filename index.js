@@ -161,6 +161,11 @@ App.prototype.receive = function(res){
  * If string aruments is number, it is converted to string.
  *
  */
+
+/**
+ * post
+ *
+ */
 App.prototype.post = function(){
 	var args = overload(arguments);
 	if (args.url != '' && args.data === undefined) {
@@ -179,7 +184,7 @@ App.prototype.post = function(){
 	var headers = this._headers;
 
 	// set url.
-	var urlObj = this.url.cd(url)
+	var urlObj = this.url.cd(url);
 	if (headers['Content-Type'] === 'application/x-www-form-urlencoded') {
 		urlObj.query = data;
 	}
@@ -205,6 +210,10 @@ App.prototype.post = function(){
 	.then(this.receive.bind(this));
 };
 
+/**
+ * put
+ *
+ */
 App.prototype.put = function(){
 	var args = overload(arguments);
 	if (args.url != '' && args.data === undefined) {
@@ -223,7 +232,7 @@ App.prototype.put = function(){
 	var headers = this._headers;
 
 	// set url.
-	var urlObj = this.url.cd(url)
+	var urlObj = this.url.cd(url);
 	if (headers['Content-Type'] === 'application/x-www-form-urlencoded') {
 		urlObj.query = data;
 	}
@@ -245,6 +254,41 @@ App.prototype.put = function(){
 		.pipe(request(options))
 		.pipe(es.map(resolve))
 		.on('error', reject)
+	})
+	.then(this.receive.bind(this));
+};
+
+/**
+ * get
+ *
+ */
+App.prototype.get = function(){
+	var args = overload(arguments);
+	if (args.url != '' && args.data === undefined) {
+		var get = this.get.bind(this, args.url);
+		var transform = es.map(function(data, next){
+			get(data).then(function(data){
+				next(null, data);
+			})
+		});
+		// return curried function.
+		return _.assignIn(get, transform);
+	}
+
+	var headers = this._headers;
+	var urlObj = this.url.cd(args.url);
+	urlObj.query = args.data;
+
+	// attach cookies.
+	attachCookies(this.jar, urlObj, headers);
+
+	return new Promise(function(resolve, reject){
+		var options = _.defaults({method: 'get', headers: headers}, urlObj);
+		// get a request.
+		var req = request(options);
+		req.pipe(es.map(resolve))
+		.on('error', reject)
+		req.end();
 	})
 	.then(this.receive.bind(this));
 };
