@@ -17,6 +17,13 @@ var server = express()
 	req.body.id = parseInt(req.params.id);
 	res.send(req.body);
 })
+.put('/api/user', function(req, res){
+	res.send(req.body);
+})
+.put('/api/user/:id', function(req, res){
+	req.body.id = parseInt(req.params.id);
+	res.send(req.body);
+})
 .post('/api/echo', function(req, res){
 	res.setHeader('Content-Type', 'text/plain; charset=UTF-8');
 	res.send(req.body);
@@ -128,6 +135,60 @@ describe('req', function(){
 				var i = 0;
 				es.readArray(data)
 				.pipe(post)
+				.pipe(es.map(function(res, cb){
+					res.body.should.deep.equal(data[i++]);
+					cb(null, res);
+				}))
+				.on('error', done)
+				.on('end', done)
+			});
+		});
+
+		describe('#put', function(){
+			var data = [{username: 'user1'}, {username: 'user2'}];
+			var req = Req('http://localhost:3000/api');
+			var put = req.put('user');
+
+			it('should return Promise and put data to a server.', function(done){
+				req.put('user', data[0])
+				.then(function(res){
+					res.body.should.deep.equal(data[0]);
+				})
+				.then(done, done);
+			});
+
+			it('should regard number as string.', function(done){
+				var user = req.cd('user');
+				user.put(12345, data[0])
+				.then(function(res){
+					should.equal(res.body.id, 12345);
+					delete res.body.id;
+					res.body.should.deep.equal(data[0]);
+				})
+				.then(done, done);
+			});
+
+			it('should return Promise and put data to a server.', function(done){
+				var req = Req('http://localhost:3000/api/user');
+				req.put(data[0])
+				.then(function(res){
+					res.body.should.deep.equal(data[0]);
+				})
+				.then(done, done);
+			});
+
+			it('should be a curried function and put data to a server.', function(done){
+				put(data[0])
+				.then(function(res){
+					res.body.should.deep.equal(data[0]);
+				})
+				.then(done, done);
+			});
+
+			it('should be a Transform and put data to a server.', function(done){
+				var i = 0;
+				es.readArray(data)
+				.pipe(put)
 				.pipe(es.map(function(res, cb){
 					res.body.should.deep.equal(data[i++]);
 					cb(null, res);

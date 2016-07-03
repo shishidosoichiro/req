@@ -9,13 +9,17 @@ Functional HTTP client for gulp
 ### Stream style
 
 ```js
+var flow = require('gulp-flow');
 var Req = require('req');
 
-var req = Req('http://localhost:8080/api');
+var req = Req('http://localhost:3000/api');
 
 src('./data/user/*.json')
-.pipe(json())
-.pipe(req.post('user'))
+.pipe(flow(
+	String,
+	JSON.parse,
+	req.post('user')
+))
 ```
 
 ### Promise style

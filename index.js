@@ -4,6 +4,7 @@ var stream = require('stream');
 var http = require('http');
 var util = require('util');
 var Url = require('url2');
+var request = require('request');
 var _ = require('lodash');
 var es = require('event-stream');
 var ContentType = require('content-type');
@@ -36,6 +37,7 @@ var App = module.exports = function(url, options){
 
 	// bind
 	this.post = this.post.bind(this);
+	this.put = this.put.bind(this);
 };
 
 App.prototype.contentType = function(type){
@@ -106,36 +108,28 @@ var overload = function(args){
 }
 
 App.prototype.receive = function(res){
-	// save cookies.
+	//console.log(`STATUS: ${res.statusCode}`);
 	saveCookies(this.jar, res);
-
-	// console.log(`STATUS: ${res.statusCode}`);
-	//console.log(res.headers)
-	var chunks = [];
-	var push = chunks.push.bind(chunks);
-	var join = chunks.join.bind(chunks, '');
-	resolve = resolve.bind(null, res);
-	var body = _.set.bind(_, res, 'body');
+	var charset = 'utf8';
 
 	if (res.headers['Content-Type']) {
 		var contentType = ContentType.parse(res);
-		if (contentType.parameters.charset) res.setEncoding(contentType.parameters.charset);
+		if (contentType.parameters.charset) charset = contentType.parameters.charset;
+
 		// json
 		if (_.includes(['application/json', 'text/javascript+json'], contentType.type)) {
-			res.on('data', push);
-			res.on('end', _.flow(join, JSON.parse, body, resolve));
+			res.body = JSON.parse(String(res.body, charset));
 		}
 		// text
 		else if (/^text\//.test(contentType.type)) {
-			res.on('data', push);
-			res.on('end', _.flow(join, body, resolve));
+			res.body = String(res.body, charset);
 		}
-		else reject(new Error(`not supported Content-Type: ${contentType.type}`))
+		else throw new Error(`not supported Content-Type: ${contentType.type}`);
 	}
 	else {
-		res.on('data', push);
-		res.on('end', _.flow(join, jsonify, body, resolve));
+		res.body = jsonify(String(res.body, charset));
 	}
+	return res;
 }
 
 /**
@@ -182,73 +176,77 @@ App.prototype.post = function(){
 
 	var url = args.url;
 	var data = args.data;
+	var headers = this._headers;
 
 	// set url.
 	var urlObj = this.url.cd(url)
-	if (this._headers['Content-Type'] === 'application/x-www-form-urlencoded') {
+	if (headers['Content-Type'] === 'application/x-www-form-urlencoded') {
 		urlObj.query = data;
 	}
 
 	// attach cookies.
-	attachCookies(this.jar, urlObj, this._headers);
+	attachCookies(this.jar, urlObj, headers);
 
 	if (typeof data === 'object') data = JSON.stringify(data);
 
 	var array = [];
-	if (this._headers['Content-Type'] != 'application/x-www-form-urlencoded') {
+	if (headers['Content-Type'] != 'application/x-www-form-urlencoded') {
 		array.push(data);
 	}
 
-	// post a request.
-	var requestOptions = _.defaults({method: 'POST', headers: this._headers}, urlObj);
+	return new Promise(function(resolve, reject){
+		var options = _.defaults({method: 'post', headers: headers}, urlObj);
+		// post a request.
+		es.readArray(array)
+		.pipe(request(options))
+		.pipe(es.map(resolve))
+		.on('error', reject)
+	})
+	.then(this.receive.bind(this));
+};
 
-	//readArray([data])
-	//.pipe(http.request(requestOptions))
-	//.pipe(map(function(res, next){
-	//	res.body = JSON.parse(String(res.body));
-	//	return flow(String, JSON.parse, body, resolve)
-	//})
+App.prototype.put = function(){
+	var args = overload(arguments);
+	if (args.url != '' && args.data === undefined) {
+		var put = this.put.bind(this, args.url);
+		var transform = es.map(function(data, next){
+			put(data).then(function(data){
+				next(null, data);
+			})
+		});
+		// return curried function.
+		return _.assignIn(put, transform);
+	}
+
+	var url = args.url;
+	var data = args.data;
+	var headers = this._headers;
+
+	// set url.
+	var urlObj = this.url.cd(url)
+	if (headers['Content-Type'] === 'application/x-www-form-urlencoded') {
+		urlObj.query = data;
+	}
+
+	// attach cookies.
+	attachCookies(this.jar, urlObj, headers);
+
+	if (typeof data === 'object') data = JSON.stringify(data);
+
+	var array = [];
+	if (headers['Content-Type'] != 'application/x-www-form-urlencoded') {
+		array.push(data);
+	}
 
 	return new Promise(function(resolve, reject){
+		var options = _.defaults({method: 'put', headers: headers}, urlObj);
+		// put a request.
 		es.readArray(array)
-		.pipe(http.request(requestOptions, function(res){
-			// console.log(`STATUS: ${res.statusCode}`);
-			//console.log(res.headers)
-			// save cookies.
-			saveCookies(this.jar, res);
-
-			var buffer = undefined;
-			res.on('data', function(chunk){
-				if (buffer === undefined) buffer = chunk;
-				else buffer = buffer.concat(chunk);
-			});
-			res.on('end', function(){
-				res.body = buffer;
-				resolve(res);
-			});
-		}.bind(this)))
+		.pipe(request(options))
+		.pipe(es.map(resolve))
 		.on('error', reject)
-	}.bind(this))
-	.then(function(res){
-		if (res.headers['Content-Type']) {
-			var contentType = ContentType.parse(res);
-			if (contentType.parameters.charset) res.setEncoding(contentType.parameters.charset);
-
-			// json
-			if (_.includes(['application/json', 'text/javascript+json'], contentType.type)) {
-				res.body = JSON.parse(String(res.body));
-			}
-			// text
-			else if (/^text\//.test(contentType.type)) {
-				res.body = String(res.body);
-			}
-			else reject(new Error(`not supported Content-Type: ${contentType.type}`))
-		}
-		else {
-			res.body = jsonify(String(res.body));
-		}
-		return res;
-	});
+	})
+	.then(this.receive.bind(this));
 };
 
 /**
