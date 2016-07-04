@@ -181,28 +181,28 @@ App.prototype.post = function(){
 
 	var data = args.data;
 	var headers = this._headers;
-
-	// set url.
 	var urlObj = this.url.cd(args.url);
-	if (headers['Content-Type'] === 'application/x-www-form-urlencoded') {
-		urlObj.query = data;
-	}
+	var options = {method: 'post', headers: headers};
 
 	// attach cookies.
 	attachCookies(this.jar, urlObj, headers);
 
-	if (typeof data === 'object') data = JSON.stringify(data);
-
-	var array = [];
-	if (headers['Content-Type'] != 'application/x-www-form-urlencoded') {
-		array.push(data);
+	if (headers['Content-Type'] === 'application/x-www-form-urlencoded') {
+		urlObj.query = data;
+		data = es.readArray([]);
+	}
+	else if (data instanceof stream) {
+	}
+	else if (typeof data === 'string') {
+		data = es.readArray([data]);
+	}
+	else if (typeof data === 'object') {
+		data = es.readArray([JSON.stringify(data)]);
 	}
 
+	options = _.defaults(options, urlObj);
 	return new Promise(function(resolve, reject){
-		var options = _.defaults({method: 'post', headers: headers}, urlObj);
-		// post a request.
-		es.readArray(array)
-		.pipe(request(options))
+		data.pipe(request(options))
 		.pipe(es.map(resolve))
 		.on('error', reject)
 	})
@@ -228,28 +228,28 @@ App.prototype.put = function(){
 
 	var data = args.data;
 	var headers = this._headers;
-
-	// set url.
 	var urlObj = this.url.cd(args.url);
-	if (headers['Content-Type'] === 'application/x-www-form-urlencoded') {
-		urlObj.query = data;
-	}
+	var options = {method: 'put', headers: headers};
 
 	// attach cookies.
 	attachCookies(this.jar, urlObj, headers);
 
-	if (typeof data === 'object') data = JSON.stringify(data);
-
-	var array = [];
-	if (headers['Content-Type'] != 'application/x-www-form-urlencoded') {
-		array.push(data);
+	if (headers['Content-Type'] === 'application/x-www-form-urlencoded') {
+		urlObj.query = data;
+		data = es.readArray([]);
+	}
+	else if (data instanceof stream) {
+	}
+	else if (typeof data === 'string') {
+		data = es.readArray([data]);
+	}
+	else if (typeof data === 'object') {
+		data = es.readArray([JSON.stringify(data)]);
 	}
 
+	options = _.defaults(options, urlObj);
 	return new Promise(function(resolve, reject){
-		var options = _.defaults({method: 'put', headers: headers}, urlObj);
-		// put a request.
-		es.readArray(array)
-		.pipe(request(options))
+		data.pipe(request(options))
 		.pipe(es.map(resolve))
 		.on('error', reject)
 	})
@@ -275,14 +275,14 @@ App.prototype.get = function(){
 
 	var headers = this._headers;
 	var urlObj = this.url.cd(args.url);
+	var options = {method: 'get', headers: headers};
 	urlObj.query = args.data;
 
 	// attach cookies.
 	attachCookies(this.jar, urlObj, headers);
 
+	options = _.defaults(options, urlObj);
 	return new Promise(function(resolve, reject){
-		var options = _.defaults({method: 'get', headers: headers}, urlObj);
-		// get a request.
 		var req = request(options);
 		req.pipe(es.map(resolve))
 		.on('error', reject)

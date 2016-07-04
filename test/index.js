@@ -149,6 +149,16 @@ describe('req', function(){
 				.on('error', done)
 				.on('end', done)
 			});
+
+			it('should be a Transform and post data to a server.', function(done){
+				var stream = es.readArray([JSON.stringify(data[0])]);
+				post(stream)
+				.then(function(res){
+					res.body.should.deep.equal(data[0]);
+					done();
+				})
+				.catch(done)
+			});
 		});
 
 		describe('#put', function(){
