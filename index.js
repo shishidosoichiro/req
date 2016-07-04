@@ -179,12 +179,11 @@ App.prototype.post = function(){
 		return _.assignIn(post, transform);
 	}
 
-	var url = args.url;
 	var data = args.data;
 	var headers = this._headers;
 
 	// set url.
-	var urlObj = this.url.cd(url);
+	var urlObj = this.url.cd(args.url);
 	if (headers['Content-Type'] === 'application/x-www-form-urlencoded') {
 		urlObj.query = data;
 	}
@@ -227,12 +226,11 @@ App.prototype.put = function(){
 		return _.assignIn(put, transform);
 	}
 
-	var url = args.url;
 	var data = args.data;
 	var headers = this._headers;
 
 	// set url.
-	var urlObj = this.url.cd(url);
+	var urlObj = this.url.cd(args.url);
 	if (headers['Content-Type'] === 'application/x-www-form-urlencoded') {
 		urlObj.query = data;
 	}
