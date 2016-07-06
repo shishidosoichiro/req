@@ -179,7 +179,6 @@ App.prototype.post = function(){
   var headers = this._headers;
   var urlObj = this.url.cd(args.url);
   var options = {method: 'post', headers: headers};
-  options = _.defaults(options, urlObj);
 
   // attach cookies.
   attachCookies(this.jar, urlObj, headers);
