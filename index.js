@@ -57,50 +57,45 @@ App.prototype.cd = function(to){
   return App(this.url.cd(to), {jar: this.jar, headers: this.headers()});
 };
 
+/**
+
+overload
+
+- ([String url]) -> Duplex
+- ([String url]) -> Promise
+- ([String url]) -> Function(curried)
+- ([String url, ]Object data) -> Promise
+- (String url, String data) -> Promise
+- (String url, String number) -> Promise
+ */
 var overload = function(args){
   if (typeof args[0] === 'number') args[0] = String(args[0]);
   if (typeof args[1] === 'number') args[1] = String(args[1]);
 
-  // Return promise pattern.
-  // Promise = req.post(String url, Object data);
-  if (args.length === 2 && typeof args[0] === 'string' && typeof args[1] === 'object') {
+  // - ([String url]) -> Duplex
+  // - ([String url]) -> Promise
+  // - ([String url]) -> Function(curried)
+  if ((args.length === 0)
+    || (args.length === 1 && typeof args[0] === 'string')) {
+    return {
+      url: args[0],
+      data: undefined
+    };
+  }
+  // - ([String url, ]Object data) -> Promise
+  // - (String url, String data) -> Promise
+  // - (String url, String number) -> Promise
+  else if ((args.length === 2 && typeof args[0] === 'string' && typeof args[1] === 'object')
+    || (args.length === 2 && typeof args[0] === 'string' && typeof args[1] === 'string')) {
     return {
       url: args[0],
       data: args[1]
     };
   }
-  // Promise = req.post(String url, String data);
-  else if (args.length === 2 && typeof args[0] === 'string' && typeof args[1] === 'string') {
-    return {
-      url: args[0],
-      data: args[1]
-    };
-  }
-  // Return promise pattren omitting url.
-  // Promise = req.post(Object data);
   else if (args.length === 1 && typeof args[0] === 'object') {
     return {
       url: undefined,
       data: args[0]
-    };
-  }
-  // Return promise pattren omitting url and data.
-  // Promise = req.post();
-  else if (args.length === 0) {
-    return {
-      url: undefined,
-      data: undefined
-    };
-  }
-  // Return curried pattren with Writable.
-  // Promise = req.post(String url);
-  // Writable = req.post(String url);
-  // curried = req.post(String url);
-  // Promise = curried(Object data);
-  else if (args.length === 1 && typeof args[0] === 'string') {
-    return {
-      url: args[0],
-      data: undefined
     };
   }
   // Invalid arguments.
@@ -133,33 +128,15 @@ App.prototype.receive = function(res){
 }
 
 /**
- * post
- *
- * Return Promise pattern.
- *
- * ```js
- * Promise = req.post(String url, Object data);
- * Promise = req.post(String url, String data);
- * ```
- *
- *
- * Return Promise pattren omitting url.
- *
- * ```js
- * Promise = req.post(Object data);
- * ```
- *
- *
- * Return curried pattren with Writable.
- *
- * ```js
- * var writable = req.post(String url);
- * var curried = req.post(String url);
- * Promise = curried(Object data);
- * ```
- *
- * If string aruments is number, it is converted to string.
- *
+post
+
+- ([String url]) -> Duplex
+- ([String url]) -> Promise
+- ([String url, ]Object data) -> Promise
+- (String url, String data) -> Promise
+- (String url, String number) -> Promise
+
+- * ([Object data]) -> Promise
  */
 
 /**
@@ -168,6 +145,25 @@ App.prototype.receive = function(res){
  */
 App.prototype.post = function(){
   var args = overload(arguments);
+  /*
+  // attach cookies.
+  attachCookies(this.jar, urlObj, headers);
+  var headers = _.cloneDeep(this._headers);
+  var urlObj = this.url.cd(args.url);
+  var options = {method: 'post', headers: headers};
+  options = _.defaults(options, urlObj);
+
+  var duplex = request(options);
+
+  // return curried function that has Duplex I/F.
+  if (args.data === undefined) {
+    var req = this.post.bind(this, args.url);
+    return _.assignIn(req, duplex);
+  }
+  */
+
+
+
   if (args.url != '' && args.data === undefined) {
     var post = this.post.bind(this, args.url);
     var transform = es.map(function(data, next){
@@ -183,6 +179,7 @@ App.prototype.post = function(){
   var headers = this._headers;
   var urlObj = this.url.cd(args.url);
   var options = {method: 'post', headers: headers};
+  options = _.defaults(options, urlObj);
 
   // attach cookies.
   attachCookies(this.jar, urlObj, headers);
