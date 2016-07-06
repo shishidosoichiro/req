@@ -38,6 +38,7 @@ var App = module.exports = function(url, options){
   // bind
   this.post = this.post.bind(this);
   this.put = this.put.bind(this);
+  this.get = this.get.bind(this);
 };
 
 App.prototype.contentType = function(type){
