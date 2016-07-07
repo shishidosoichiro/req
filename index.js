@@ -1,11 +1,12 @@
 'use strict';
 
-var stream = require('stream');
 var http = require('http');
 var util = require('util');
 var Url = require('url2');
 var request = require('request');
 var _ = require('lodash');
+var defaultsDeep = require('lodash/defaultsDeep');
+var cloneDeep = require('lodash/cloneDeep');
 var es = require('event-stream');
 var ContentType = require('content-type');
 var CookieJar = require('cookiejar').CookieJar;
@@ -25,17 +26,23 @@ var jsonify = function(body){
   }
 };
 
-var App = module.exports = function(url, options){
+var App = module.exports = function (url, options){
   if (!(this instanceof App)) return new App(url, options);
 
-  options = _.defaultsDeep(options || {}, defaults);
+  options = defaultsDeep(options || {}, defaults);
   this.url = url instanceof Url ? url : Url(url);
 
   // inherit context.
-  this._headers = _.cloneDeep(options.headers);
+  this._headers = cloneDeep(options.headers);
   this.jar = options.jar || new CookieJar();
 
   // bind
+  var stream = this.stream;
+  this.stream = {};
+  this.stream.request = stream.request.bind(this);
+  this.stream.post = stream.post.bind(this);
+  this.stream.put = stream.put.bind(this);
+  this.stream.get = stream.get.bind(this);
   this.post = this.post.bind(this);
   this.put = this.put.bind(this);
   this.get = this.get.bind(this);
@@ -62,9 +69,7 @@ App.prototype.cd = function(to){
 
 overload
 
-- ([String url]) -> Duplex
 - ([String url]) -> Promise
-- ([String url]) -> Function(curried)
 - ([String url, ]Object data) -> Promise
 - (String url, String data) -> Promise
 - (String url, String number) -> Promise
@@ -73,9 +78,7 @@ var overload = function(args){
   if (typeof args[0] === 'number') args[0] = String(args[0]);
   if (typeof args[1] === 'number') args[1] = String(args[1]);
 
-  // - ([String url]) -> Duplex
   // - ([String url]) -> Promise
-  // - ([String url]) -> Function(curried)
   if ((args.length === 0)
     || (args.length === 1 && typeof args[0] === 'string')) {
     return {
@@ -129,15 +132,36 @@ App.prototype.receive = function(res){
 }
 
 /**
+ * stream I/F
+ *
+ */
+App.prototype.stream = {};
+App.prototype.stream.request = function(method, url){
+  // attach cookies.
+  var headers = cloneDeep(this._headers);
+  var urlObj = this.url.cd(url);
+  var options = {method: method, headers: headers};
+  options = _.defaults(options, urlObj);
+  attachCookies(this.jar, urlObj, headers);
+  return request(options);
+};
+App.prototype.stream.post = function(url){
+  return this.stream.request('post', url);
+};
+App.prototype.stream.put = function(url){
+  return this.stream.request('put', url);
+};
+App.prototype.stream.get = function(url){
+  return this.stream.request('get', url);
+};
+
+/**
 post
 
-- ([String url]) -> Duplex
 - ([String url]) -> Promise
 - ([String url, ]Object data) -> Promise
 - (String url, String data) -> Promise
 - (String url, String number) -> Promise
-
-- * ([Object data]) -> Promise
  */
 
 /**
@@ -146,49 +170,12 @@ post
  */
 App.prototype.post = function(){
   var args = overload(arguments);
-  /*
-  // attach cookies.
-  attachCookies(this.jar, urlObj, headers);
-  var headers = _.cloneDeep(this._headers);
-  var urlObj = this.url.cd(args.url);
-  var options = {method: 'post', headers: headers};
-  options = _.defaults(options, urlObj);
-
-  var duplex = request(options);
-
-  // return curried function that has Duplex I/F.
-  if (args.data === undefined) {
-    var req = this.post.bind(this, args.url);
-    return _.assignIn(req, duplex);
-  }
-  */
-
-
-
-  if (args.url != '' && args.data === undefined) {
-    var post = this.post.bind(this, args.url);
-    var transform = es.map(function(data, next){
-      post(data).then(function(data){
-        next(null, data);
-      })
-    });
-    // return curried function.
-    return _.assignIn(post, transform);
-  }
-
+  var duplex = this.stream.post(args.url);
   var data = args.data;
-  var headers = this._headers;
-  var urlObj = this.url.cd(args.url);
-  var options = {method: 'post', headers: headers};
 
-  // attach cookies.
-  attachCookies(this.jar, urlObj, headers);
-
-  if (headers['Content-Type'] === 'application/x-www-form-urlencoded') {
-    urlObj.query = data;
+  if (this._headers['Content-Type'] === 'application/x-www-form-urlencoded') {
+    duplex.options.query = data;
     data = es.readArray([]);
-  }
-  else if (data instanceof stream) {
   }
   else if (typeof data === 'string') {
     data = es.readArray([data]);
@@ -196,10 +183,12 @@ App.prototype.post = function(){
   else if (typeof data === 'object') {
     data = es.readArray([JSON.stringify(data)]);
   }
+  else {
+    data = es.readArray([]);
+  }
 
-  options = _.defaults(options, urlObj);
   return new Promise(function(resolve, reject){
-    data.pipe(request(options))
+    data.pipe(duplex)
     .pipe(es.map(resolve))
     .on('error', reject)
   })
@@ -234,8 +223,6 @@ App.prototype.put = function(){
   if (headers['Content-Type'] === 'application/x-www-form-urlencoded') {
     urlObj.query = data;
     data = es.readArray([]);
-  }
-  else if (data instanceof stream) {
   }
   else if (typeof data === 'string') {
     data = es.readArray([data]);
