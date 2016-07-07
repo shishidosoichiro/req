@@ -22,7 +22,7 @@
     "body-parser": "^1.15.1",
     "chai": "^3.5.0",
     "coveralls": "^2.11.9",
-    "express": "^4.13.4",
+    "express": "^4.14.0",
     "gulp": "^3.9.1",
     "gulp-istanbul": "^0.10.4",
     "gulp-mocha": "^2.2.0",

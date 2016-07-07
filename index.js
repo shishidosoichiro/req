@@ -174,7 +174,9 @@ App.prototype.post = function(){
   var data = args.data;
 
   if (this._headers['Content-Type'] === 'application/x-www-form-urlencoded') {
-    duplex.options.query = data;
+    var urlObj = this.url.cd(args.url);
+    urlObj.query = data;
+    duplex.options = defaultsDeep({}, urlObj, duplex.options);
     data = es.readArray([]);
   }
   else if (typeof data === 'string') {

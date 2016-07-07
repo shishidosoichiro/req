@@ -4,16 +4,18 @@ var chai = require('chai');
 var expect = chai.expect;
 var should = chai.should();
 var express = require('express')
+var Router = express.Router;
 var bodyParser = require('body-parser');
 var es = require('event-stream');
+var _ = require('lodash');
 
 var json = bodyParser.json({ type: 'application/json' });
 var text = bodyParser.text({ type: 'text/plain' });
 
-var server = express()
+var app = express()
 .post('/api/user', json, function(req, res){
   res.setHeader('Content-Type', 'application/json; charset=UTF-8');
-  res.send(req.body);
+  res.send(_.defaults(req.query, req.body));
 })
 .post('/api/user/:id', json, function(req, res){
   req.body.id = parseInt(req.params.id);
@@ -42,7 +44,16 @@ var server = express()
   res.setHeader('Content-Type', 'text/plain; charset=UTF-8');
   res.send(req.body);
 })
-.listen(3000);
+
+app.listen(3000);
+
+
+/*
+var serv = express()
+
+serv.route('/user')
+.use(bodyParser.json({ type: 'application/json' }))
+*/
 
 var Req = require('../');
 
@@ -136,7 +147,7 @@ describe('req', function(){
       var req = Req('http://localhost:3000/api');
       var post = req.post('user');
 
-      it('should return Promise and post data to a server, if params are [String, Object].', function(done){
+      it('should post data to a server and return Promise, if params are [String, Object].', function(done){
         req.post('user', data[0])
         .then(function(res){
           res.body.should.deep.equal(data[0]);
@@ -144,7 +155,7 @@ describe('req', function(){
         .then(done, done);
       });
 
-      it('should return Promise and post data to a server, if params are [Number, Object].', function(done){
+      it('should post data to a server and return Promise, if params are [Number, Object].', function(done){
         var user = req.cd('user');
         user.post(12345, data[0])
         .then(function(res){
@@ -155,7 +166,7 @@ describe('req', function(){
         .then(done, done);
       });
 
-      it('should return Promise and post data to a server, if params are [Object].', function(done){
+      it('should post data to a server and return Promise, if a param is [Object].', function(done){
         var req = Req('http://localhost:3000/api/user');
         req.post(data[0])
         .then(function(res){
@@ -164,7 +175,7 @@ describe('req', function(){
         .then(done, done);
       });
 
-      it('should return Promise and post data to a server, if params are [String].', function(done){
+      it('should post data to a server and return Promise, if a param is [String].', function(done){
         var req = Req('http://localhost:3000/api/user');
         req.post('12345')
         .then(function(res){
@@ -173,11 +184,21 @@ describe('req', function(){
         .then(done, done);
       });
 
-      it('should return Promise and post data to a server, if param is none.', function(done){
+      it('should post data to a server and return Promise, if a param is none.', function(done){
         var req = Req('http://localhost:3000/api/user');
         req.post()
         .then(function(res){
           res.body.should.deep.equal({});
+        })
+        .then(done, done);
+      });
+
+      it('should , if \'application/x-www-form-urlencoded\'.', function(done){
+        var req = Req('http://localhost:3000/api/user')
+        .contentType('application/x-www-form-urlencoded');
+        req.post({key: '54321'})
+        .then(function(res){
+          res.body.should.deep.equal({key: '54321'});
         })
         .then(done, done);
       });
