@@ -208,39 +208,28 @@ App.prototype.post = function(){
  */
 App.prototype.put = function(){
   var args = overload(arguments);
-  if (args.url != '' && args.data === undefined) {
-    var put = this.put.bind(this, args.url);
-    var transform = es.map(function(data, next){
-      put(data).then(function(data){
-        next(null, data);
-      })
-    });
-    // return curried function.
-    return _.assignIn(put, transform);
+
+  if (args.data != undefined && this.headers['Content-Type'] === 'application/x-www-form-urlencoded') {
+    var query = querystring.stringify(args.data);
+    if (args.url === undefined) args.url = '?' + query;
+    else args.url += '?' + query;
+    args.data = undefined;
   }
 
-  var data = args.data;
-  var headers = this.headers;
-  var urlObj = this.url.cd(args.url);
-  var options = {method: 'put', headers: headers};
-
-  // attach cookies.
-  attachCookies(this.jar, urlObj, headers);
-
-  if (headers['Content-Type'] === 'application/x-www-form-urlencoded') {
-    urlObj.query = data;
-    data = es.readArray([]);
+  var stream;
+  if (typeof args.data === 'string') {
+    stream = readable(args.data);
   }
-  else if (typeof data === 'string') {
-    data = es.readArray([data]);
+  else if (typeof args.data === 'object') {
+    stream = readable(JSON.stringify(args.data));
   }
-  else if (typeof data === 'object') {
-    data = es.readArray([JSON.stringify(data)]);
+  else {
+    stream = readable('');
   }
 
-  options = _.defaults(options, urlObj);
+  var duplex = this.stream.put(args.url);
   return new Promise(function(resolve, reject){
-    data.pipe(request(options))
+    stream.pipe(duplex)
     .pipe(es.map(resolve))
     .on('error', reject)
   })
@@ -253,6 +242,23 @@ App.prototype.put = function(){
  */
 App.prototype.get = function(){
   var args = overload(arguments);
+
+  var query = querystring.stringify(args.data);
+  if (args.url === undefined) args.url = '?' + query;
+  else args.url += '?' + query;
+  args.data = undefined;
+
+  var stream = readable('');
+
+  var duplex = this.stream.get(args.url);
+  return new Promise(function(resolve, reject){
+    stream.pipe(duplex)
+    .pipe(es.map(resolve))
+    .on('error', reject)
+  })
+  .then(this.receive.bind(this));
+
+  var args = overload(arguments);
   if (args.url != '' && args.data === undefined) {
     var get = this.get.bind(this, args.url);
     var transform = es.map(function(data, next){
@@ -263,23 +269,6 @@ App.prototype.get = function(){
     // return curried function.
     return _.assignIn(get, transform);
   }
-
-  var headers = this.headers;
-  var urlObj = this.url.cd(args.url);
-  var options = {method: 'get', headers: headers};
-  urlObj.query = args.data;
-
-  // attach cookies.
-  attachCookies(this.jar, urlObj, headers);
-
-  options = _.defaults(options, urlObj);
-  return new Promise(function(resolve, reject){
-    var req = request(options);
-    req.pipe(es.map(resolve))
-    .on('error', reject)
-    req.end();
-  })
-  .then(this.receive.bind(this));
 };
 
 /**

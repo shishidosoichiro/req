@@ -24,7 +24,7 @@ var app = express()
 })
 .put('/api/user', json, function(req, res){
   res.setHeader('Content-Type', 'application/json; charset=UTF-8');
-  res.send(req.body);
+  res.send(_.defaults(req.query, req.body));
 })
 .put('/api/user/:id', json, function(req, res){
   req.body.id = parseInt(req.params.id);
@@ -145,7 +145,6 @@ describe('req', function(){
     describe('#post', function(){
       var data = [{username: 'user1'}, {username: 'user2'}];
       var req = Req('http://localhost:3000/api');
-      var post = req.post('user');
 
       it('should post data to a server and return Promise, if params are [String, Object].', function(done){
         req.post('user', data[0])
@@ -207,9 +206,8 @@ describe('req', function(){
     describe('#put', function(){
       var data = [{username: 'user1'}, {username: 'user2'}];
       var req = Req('http://localhost:3000/api');
-      var put = req.put('user');
 
-      it('should return Promise and put data to a server.', function(done){
+      it('should put data to a server and return Promise, if params are [String, Object].', function(done){
         req.put('user', data[0])
         .then(function(res){
           res.body.should.deep.equal(data[0]);
@@ -217,7 +215,7 @@ describe('req', function(){
         .then(done, done);
       });
 
-      it('should regard number as string.', function(done){
+      it('should put data to a server and return Promise, if params are [Number, Object].', function(done){
         var user = req.cd('user');
         user.put(12345, data[0])
         .then(function(res){
@@ -228,7 +226,7 @@ describe('req', function(){
         .then(done, done);
       });
 
-      it('should return Promise and put data to a server.', function(done){
+      it('should put data to a server and return Promise, if a param is [Object].', function(done){
         var req = Req('http://localhost:3000/api/user');
         req.put(data[0])
         .then(function(res){
@@ -237,10 +235,30 @@ describe('req', function(){
         .then(done, done);
       });
 
-      it('should be a curried function and put data to a server.', function(done){
-        put(data[0])
+      it('should put data to a server and return Promise, if a param is [String].', function(done){
+        var req = Req('http://localhost:3000/api/user');
+        req.put('12345')
         .then(function(res){
-          res.body.should.deep.equal(data[0]);
+          res.body.should.deep.equal({id: 12345});
+        })
+        .then(done, done);
+      });
+
+      it('should put data to a server and return Promise, if a param is none.', function(done){
+        var req = Req('http://localhost:3000/api/user');
+        req.put()
+        .then(function(res){
+          res.body.should.deep.equal({});
+        })
+        .then(done, done);
+      });
+
+      it('should , if \'application/x-www-form-urlencoded\'.', function(done){
+        var req = Req('http://localhost:3000/api/user')
+        .contentType('application/x-www-form-urlencoded');
+        req.put({key: '54321'})
+        .then(function(res){
+          res.body.should.deep.equal({key: '54321'});
         })
         .then(done, done);
       });
@@ -249,9 +267,8 @@ describe('req', function(){
     describe('#get', function(){
       var data = [{username: 'user1'}, {username: 'user2'}];
       var req = Req('http://localhost:3000/api');
-      var get = req.get('user');
 
-      it('should return Promise and get data to a server.', function(done){
+      it('should get data to a server and return Promise, if params are [String, Object].', function(done){
         req.get('user', data[0])
         .then(function(res){
           res.body.should.deep.equal(data[0]);
@@ -259,7 +276,7 @@ describe('req', function(){
         .then(done, done);
       });
 
-      it('should regard number as string.', function(done){
+      it('should get data to a server and return Promise, if params are [Number, Object].', function(done){
         var user = req.cd('user');
         user.get(12345, data[0])
         .then(function(res){
@@ -270,7 +287,7 @@ describe('req', function(){
         .then(done, done);
       });
 
-      it('should return Promise and get data to a server.', function(done){
+      it('should get data to a server and return Promise, if a param is [Object].', function(done){
         var req = Req('http://localhost:3000/api/user');
         req.get(data[0])
         .then(function(res){
@@ -279,10 +296,20 @@ describe('req', function(){
         .then(done, done);
       });
 
-      it('should be a curried function and get data to a server.', function(done){
-        get(data[0])
+      it('should get data to a server and return Promise, if a param is [String].', function(done){
+        var req = Req('http://localhost:3000/api/user');
+        req.get('12345')
         .then(function(res){
-          res.body.should.deep.equal(data[0]);
+          res.body.should.deep.equal({id: 12345});
+        })
+        .then(done, done);
+      });
+
+      it('should get data to a server and return Promise, if a param is none.', function(done){
+        var req = Req('http://localhost:3000/api/user');
+        req.get()
+        .then(function(res){
+          res.body.should.deep.equal({});
         })
         .then(done, done);
       });
