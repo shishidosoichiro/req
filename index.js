@@ -3,6 +3,7 @@
 var http = require('http');
 var util = require('util');
 var Url = require('url2');
+var querystring = require('querystring');
 var request = require('request');
 var _ = require('lodash');
 var defaultsDeep = require('lodash/defaultsDeep');
@@ -25,6 +26,9 @@ var jsonify = function(body){
     return body;
   }
 };
+var readable = function(data){
+  return es.readArray([data]);
+}
 
 var App = module.exports = function (url, options){
   if (!(this instanceof App)) return new App(url, options);
@@ -33,7 +37,7 @@ var App = module.exports = function (url, options){
   this.url = url instanceof Url ? url : Url(url);
 
   // inherit context.
-  this._headers = cloneDeep(options.headers);
+  this.headers = cloneDeep(options.headers);
   this.jar = options.jar || new CookieJar();
 
   // bind
@@ -49,20 +53,20 @@ var App = module.exports = function (url, options){
 };
 
 App.prototype.contentType = function(type){
-  if (type === undefined) return this._headers['Content-Type'];
-  this._headers['Content-Type'] = type;
+  if (type === undefined) return this.headers['Content-Type'];
+  this.headers['Content-Type'] = type;
   return this;
 };
 
-App.prototype.headers = function(key, value){
-  if (key === undefined) return this._headers;
-  else if (typeof key === 'object') this._headers = key;
-  else this._headers[key] = value;
+App.prototype.header = function(key, value){
+  if (key === undefined) return this.headers;
+  else if (typeof key === 'object') this.headers = key;
+  else this.headers[key] = value;
   return this;
 };
 
 App.prototype.cd = function(to){
-  return App(this.url.cd(to), {jar: this.jar, headers: this.headers()});
+  return App(this.url.cd(to), {jar: this.jar, headers: this.headers});
 };
 
 /**
@@ -138,10 +142,10 @@ App.prototype.receive = function(res){
 App.prototype.stream = {};
 App.prototype.stream.request = function(method, url){
   // attach cookies.
-  var headers = cloneDeep(this._headers);
+  var headers = cloneDeep(this.headers);
   var urlObj = this.url.cd(url);
   var options = {method: method, headers: headers};
-  options = _.defaults(options, urlObj);
+  options = _.defaults(urlObj, options);
   attachCookies(this.jar, urlObj, headers);
   return request(options);
 };
@@ -170,27 +174,28 @@ post
  */
 App.prototype.post = function(){
   var args = overload(arguments);
-  var duplex = this.stream.post(args.url);
-  var data = args.data;
 
-  if (this._headers['Content-Type'] === 'application/x-www-form-urlencoded') {
-    var urlObj = this.url.cd(args.url);
-    urlObj.query = data;
-    duplex.options = defaultsDeep({}, urlObj, duplex.options);
-    data = es.readArray([]);
+  if (args.data != undefined && this.headers['Content-Type'] === 'application/x-www-form-urlencoded') {
+    var query = querystring.stringify(args.data);
+    if (args.url === undefined) args.url = '?' + query;
+    else args.url += '?' + query;
+    args.data = undefined;
   }
-  else if (typeof data === 'string') {
-    data = es.readArray([data]);
+
+  var stream;
+  if (typeof args.data === 'string') {
+    stream = readable(args.data);
   }
-  else if (typeof data === 'object') {
-    data = es.readArray([JSON.stringify(data)]);
+  else if (typeof args.data === 'object') {
+    stream = readable(JSON.stringify(args.data));
   }
   else {
-    data = es.readArray([]);
+    stream = readable('');
   }
 
+  var duplex = this.stream.post(args.url);
   return new Promise(function(resolve, reject){
-    data.pipe(duplex)
+    stream.pipe(duplex)
     .pipe(es.map(resolve))
     .on('error', reject)
   })
@@ -215,7 +220,7 @@ App.prototype.put = function(){
   }
 
   var data = args.data;
-  var headers = this._headers;
+  var headers = this.headers;
   var urlObj = this.url.cd(args.url);
   var options = {method: 'put', headers: headers};
 
@@ -259,7 +264,7 @@ App.prototype.get = function(){
     return _.assignIn(get, transform);
   }
 
-  var headers = this._headers;
+  var headers = this.headers;
   var urlObj = this.url.cd(args.url);
   var options = {method: 'get', headers: headers};
   urlObj.query = args.data;

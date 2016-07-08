@@ -79,22 +79,22 @@ describe('req', function(){
     });
   });
 
-  describe('#headers', function(){
+  describe('#header', function(){
     it('should set and get HTTP headers.', function(){
       var req = Req('http://localhost:3000/api');
-      req.headers('Keyword', 'Value').should.equal(req);
-      req.headers().should.include.keys('Keyword');
-      req.headers()['Keyword'].should.equal('Value');
+      req.header('Keyword', 'Value').should.equal(req);
+      req.header().should.include.keys('Keyword');
+      req.header()['Keyword'].should.equal('Value');
     });
     it('should is set \'Content-Type: application/json\' as default', function(){
       var req = Req('http://localhost:3000/api');
-      req.headers().should.include.keys('Content-Type');
-      req.headers()['Content-Type'].should.equal('application/json');
+      req.header().should.include.keys('Content-Type');
+      req.header()['Content-Type'].should.equal('application/json');
     });
-    it('should set headers object.', function(){
+    it('should set header object.', function(){
       var req = Req('http://localhost:3000/api');
-      req.headers({'A': 'B'}).should.equal(req);
-      req.headers().should.deep.equal({'A': 'B'});
+      req.header({'A': 'B'}).should.equal(req);
+      req.header().should.deep.equal({'A': 'B'});
     });
   });
 
