@@ -242,10 +242,12 @@ Req.prototype.put = function(){
 Req.prototype.get = function(){
   var args = overload(arguments);
 
-  var query = querystring.stringify(args.data);
-  if (args.url === undefined) args.url = '?' + query;
-  else args.url += '?' + query;
-  args.data = undefined;
+  if (args.data !== undefined) {
+	  var query = querystring.stringify(args.data);
+	  if (args.url === undefined) args.url = '?' + query;
+	  else args.url += '?' + query;
+	  args.data = undefined;
+  }
 
   var duplex = this.stream.get(args.url);
   return new Promise(function(resolve, reject){
