@@ -1,19 +1,27 @@
 'use strict';
 
+module.exports = Req;
+
 var http = require('http');
 var util = require('util');
-var Url = require('url2');
 var querystring = require('querystring');
+
+var Url = require('url2');
 var request = require('request');
+
 var _ = require('lodash');
 var defaultsDeep = require('lodash/defaultsDeep');
 var cloneDeep = require('lodash/cloneDeep');
+var includes = require('lodash/includes');
+var defaults = require('lodash/defaults');
+
 var es = require('event-stream');
+
 var ContentType = require('content-type');
 var CookieJar = require('cookiejar').CookieJar;
 var CookieAccess = require('cookiejar').CookieAccessInfo;
 
-var defaults = {
+var defaultOptions = {
   headers: {
     'Content-Type': 'application/json'
   }
@@ -26,14 +34,11 @@ var jsonify = function(body){
     return body;
   }
 };
-var readable = function(data){
-  return es.readArray([data]);
-}
 
-var App = module.exports = function (url, options){
-  if (!(this instanceof App)) return new App(url, options);
+function Req(url, options){
+  if (!(this instanceof Req)) return new Req(url, options);
 
-  options = defaultsDeep(options || {}, defaults);
+  options = defaultsDeep(options || {}, defaultOptions);
   this.url = url instanceof Url ? url : Url(url);
 
   // inherit context.
@@ -47,26 +52,28 @@ var App = module.exports = function (url, options){
   this.stream.post = stream.post.bind(this);
   this.stream.put = stream.put.bind(this);
   this.stream.get = stream.get.bind(this);
+  this.stream.delete = stream.delete.bind(this);
   this.post = this.post.bind(this);
   this.put = this.put.bind(this);
   this.get = this.get.bind(this);
+  this.delete = this.delete.bind(this);
 };
 
-App.prototype.contentType = function(type){
+Req.prototype.contentType = function(type){
   if (type === undefined) return this.headers['Content-Type'];
   this.headers['Content-Type'] = type;
   return this;
 };
 
-App.prototype.header = function(key, value){
+Req.prototype.header = function(key, value){
   if (key === undefined) return this.headers;
   else if (typeof key === 'object') this.headers = key;
   else this.headers[key] = value;
   return this;
 };
 
-App.prototype.cd = function(to){
-  return App(this.url.cd(to), {jar: this.jar, headers: this.headers});
+Req.prototype.cd = function(to){
+  return Req(this.url.cd(to), {jar: this.jar, headers: this.headers});
 };
 
 /**
@@ -110,7 +117,14 @@ var overload = function(args){
   throw Error('invalid arguments.');
 }
 
-App.prototype.receive = function(res){
+var readable = function(data){
+	if (typeof data === 'object') data = JSON.stringify(data);
+	else if (typeof data !== 'string') data = '';
+
+	return es.readArray([data]);
+}
+
+Req.prototype.receive = function(res){
   //console.log(`STATUS: ${res.statusCode}`);
   saveCookies(this.jar, res);
   var charset = 'utf8';
@@ -120,7 +134,7 @@ App.prototype.receive = function(res){
     if (contentType.parameters.charset) charset = contentType.parameters.charset;
 
     // json
-    if (_.includes(['application/json', 'text/javascript+json'], contentType.type)) {
+    if (includes(['application/json', 'text/javascript+json'], contentType.type)) {
       res.body = JSON.parse(String(res.body, charset));
     }
     // text
@@ -139,24 +153,27 @@ App.prototype.receive = function(res){
  * stream I/F
  *
  */
-App.prototype.stream = {};
-App.prototype.stream.request = function(method, url){
+Req.prototype.stream = {};
+Req.prototype.stream.request = function(method, url){
   // attach cookies.
   var headers = cloneDeep(this.headers);
   var urlObj = this.url.cd(url);
   var options = {method: method, headers: headers};
-  options = _.defaults(urlObj, options);
+  options = defaults(urlObj, options);
   attachCookies(this.jar, urlObj, headers);
   return request(options);
 };
-App.prototype.stream.post = function(url){
+Req.prototype.stream.post = function(url){
   return this.stream.request('post', url);
 };
-App.prototype.stream.put = function(url){
+Req.prototype.stream.put = function(url){
   return this.stream.request('put', url);
 };
-App.prototype.stream.get = function(url){
+Req.prototype.stream.get = function(url){
   return this.stream.request('get', url);
+};
+Req.prototype.stream.delete = function(url){
+  return this.stream.request('delete', url);
 };
 
 /**
@@ -172,30 +189,21 @@ post
  * post
  *
  */
-App.prototype.post = function(){
+Req.prototype.post = function(){
   var args = overload(arguments);
 
-  if (args.data != undefined && this.headers['Content-Type'] === 'application/x-www-form-urlencoded') {
+  if (args.data != undefined 
+    && this.headers['Content-Type'] === 'application/x-www-form-urlencoded') {
     var query = querystring.stringify(args.data);
     if (args.url === undefined) args.url = '?' + query;
     else args.url += '?' + query;
     args.data = undefined;
   }
 
-  var stream;
-  if (typeof args.data === 'string') {
-    stream = readable(args.data);
-  }
-  else if (typeof args.data === 'object') {
-    stream = readable(JSON.stringify(args.data));
-  }
-  else {
-    stream = readable('');
-  }
-
   var duplex = this.stream.post(args.url);
   return new Promise(function(resolve, reject){
-    stream.pipe(duplex)
+    readable(args.data)
+    .pipe(duplex)
     .pipe(es.map(resolve))
     .on('error', reject)
   })
@@ -206,30 +214,21 @@ App.prototype.post = function(){
  * put
  *
  */
-App.prototype.put = function(){
+Req.prototype.put = function(){
   var args = overload(arguments);
 
-  if (args.data != undefined && this.headers['Content-Type'] === 'application/x-www-form-urlencoded') {
+  if (args.data != undefined 
+    && this.headers['Content-Type'] === 'application/x-www-form-urlencoded') {
     var query = querystring.stringify(args.data);
     if (args.url === undefined) args.url = '?' + query;
     else args.url += '?' + query;
     args.data = undefined;
   }
 
-  var stream;
-  if (typeof args.data === 'string') {
-    stream = readable(args.data);
-  }
-  else if (typeof args.data === 'object') {
-    stream = readable(JSON.stringify(args.data));
-  }
-  else {
-    stream = readable('');
-  }
-
   var duplex = this.stream.put(args.url);
   return new Promise(function(resolve, reject){
-    stream.pipe(duplex)
+    readable(args.data)
+    .pipe(duplex)
     .pipe(es.map(resolve))
     .on('error', reject)
   })
@@ -240,7 +239,7 @@ App.prototype.put = function(){
  * get
  *
  */
-App.prototype.get = function(){
+Req.prototype.get = function(){
   var args = overload(arguments);
 
   var query = querystring.stringify(args.data);
@@ -248,27 +247,36 @@ App.prototype.get = function(){
   else args.url += '?' + query;
   args.data = undefined;
 
-  var stream = readable('');
-
   var duplex = this.stream.get(args.url);
   return new Promise(function(resolve, reject){
-    stream.pipe(duplex)
+    readable(args.data)
+    .pipe(duplex)
     .pipe(es.map(resolve))
     .on('error', reject)
   })
   .then(this.receive.bind(this));
+};
 
+/**
+ * delete
+ *
+ */
+Req.prototype.delete = function(){
   var args = overload(arguments);
-  if (args.url != '' && args.data === undefined) {
-    var get = this.get.bind(this, args.url);
-    var transform = es.map(function(data, next){
-      get(data).then(function(data){
-        next(null, data);
-      })
-    });
-    // return curried function.
-    return _.assignIn(get, transform);
-  }
+
+  var query = querystring.stringify(args.data);
+  if (args.url === undefined) args.url = '?' + query;
+  else args.url += '?' + query;
+  args.data = undefined;
+
+  var duplex = this.stream.delete(args.url);
+  return new Promise(function(resolve, reject){
+    readable(args.data)
+    .pipe(duplex)
+    .pipe(es.map(resolve))
+    .on('error', reject)
+  })
+  .then(this.receive.bind(this));
 };
 
 /**

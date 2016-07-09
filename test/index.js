@@ -40,6 +40,15 @@ var app = express()
   res.setHeader('Content-Type', 'application/json; charset=UTF-8');
   res.send(req.query);
 })
+.delete('/api/user', json, function(req, res){
+  res.setHeader('Content-Type', 'application/json; charset=UTF-8');
+  res.send(req.query);
+})
+.delete('/api/user/:id', json, function(req, res){
+  req.query.id = parseInt(req.params.id);
+  res.setHeader('Content-Type', 'application/json; charset=UTF-8');
+  res.send(req.query);
+})
 .post('/api/echo', text, function(req, res){
   res.setHeader('Content-Type', 'text/plain; charset=UTF-8');
   res.send(req.body);
@@ -308,6 +317,57 @@ describe('req', function(){
       it('should get data to a server and return Promise, if a param is none.', function(done){
         var req = Req('http://localhost:3000/api/user');
         req.get()
+        .then(function(res){
+          res.body.should.deep.equal({});
+        })
+        .then(done, done);
+      });
+    });
+
+    describe('#delete', function(){
+       var data = [{username: 'user1'}, {username: 'user2'}];
+      var req = Req('http://localhost:3000/api');
+
+      it('should delete data to a server and return Promise, if params are [String, Object].', function(done){
+        req.delete('user', data[0])
+        .then(function(res){
+          res.body.should.deep.equal(data[0]);
+        })
+        .then(done, done);
+      });
+
+      it('should delete data to a server and return Promise, if params are [Number, Object].', function(done){
+        var user = req.cd('user');
+        user.delete(12345, data[0])
+        .then(function(res){
+          should.equal(res.body.id, 12345);
+          delete res.body.id;
+          res.body.should.deep.equal(data[0]);
+        })
+        .then(done, done);
+      });
+
+      it('should delete data to a server and return Promise, if a param is [Object].', function(done){
+        var req = Req('http://localhost:3000/api/user');
+        req.delete(data[0])
+        .then(function(res){
+          res.body.should.deep.equal(data[0]);
+        })
+        .then(done, done);
+      });
+
+      it('should delete data to a server and return Promise, if a param is [String].', function(done){
+        var req = Req('http://localhost:3000/api/user');
+        req.delete('12345')
+        .then(function(res){
+          res.body.should.deep.equal({id: 12345});
+        })
+        .then(done, done);
+      });
+
+      it('should delete data to a server and return Promise, if a param is none.', function(done){
+        var req = Req('http://localhost:3000/api/user');
+        req.delete()
         .then(function(res){
           res.body.should.deep.equal({});
         })
