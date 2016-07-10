@@ -12,50 +12,52 @@ var _ = require('lodash');
 var json = bodyParser.json({ type: 'application/json' });
 var text = bodyParser.text({ type: 'text/plain' });
 
-var app = express()
-.post('/api/user', json, function(req, res){
+var user = express.Router()
+.use(json)
+.post('/', function(req, res){
   res.setHeader('Content-Type', 'application/json; charset=UTF-8');
   res.send(_.defaults(req.query, req.body));
 })
-.post('/api/user/:id', json, function(req, res){
+.post('/:id', function(req, res){
   req.body.id = parseInt(req.params.id);
   res.setHeader('Content-Type', 'application/json; charset=UTF-8');
   res.send(req.body);
 })
-.put('/api/user', json, function(req, res){
+.put('/', function(req, res){
   res.setHeader('Content-Type', 'application/json; charset=UTF-8');
   res.send(_.defaults(req.query, req.body));
 })
-.put('/api/user/:id', json, function(req, res){
+.put('/:id', function(req, res){
   req.body.id = parseInt(req.params.id);
   res.setHeader('Content-Type', 'application/json; charset=UTF-8');
   res.send(req.body);
 })
-.get('/api/user', json, function(req, res){
+.get('/', function(req, res){
   res.setHeader('Content-Type', 'application/json; charset=UTF-8');
   res.send(req.query);
 })
-.get('/api/user/:id', json, function(req, res){
+.get('/:id', function(req, res){
   req.query.id = parseInt(req.params.id);
   res.setHeader('Content-Type', 'application/json; charset=UTF-8');
   res.send(req.query);
 })
-.delete('/api/user', json, function(req, res){
+.delete('/', function(req, res){
   res.setHeader('Content-Type', 'application/json; charset=UTF-8');
   res.send(req.query);
 })
-.delete('/api/user/:id', json, function(req, res){
+.delete('/:id', function(req, res){
   req.query.id = parseInt(req.params.id);
   res.setHeader('Content-Type', 'application/json; charset=UTF-8');
   res.send(req.query);
 })
+
+express()
+.use('/api/user', user)
 .post('/api/echo', text, function(req, res){
   res.setHeader('Content-Type', 'text/plain; charset=UTF-8');
   res.send(req.body);
 })
-
-app.listen(3000);
-
+.listen(3000);
 
 /*
 var serv = express()
