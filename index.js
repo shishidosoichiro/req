@@ -2,6 +2,7 @@
 
 module.exports = Req;
 
+var Stream = require('stream');
 var http = require('http');
 var util = require('util');
 var querystring = require('querystring');
@@ -118,6 +119,7 @@ var overload = function(args){
 }
 
 var readable = function(data){
+	if (data instanceof Stream) return data;
 	if (typeof data === 'object') data = JSON.stringify(data);
 	else if (typeof data !== 'string') data = '';
 

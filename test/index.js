@@ -203,7 +203,7 @@ describe('req', function(){
         .then(done, done);
       });
 
-      it('should , if \'application/x-www-form-urlencoded\'.', function(done){
+      it('should post data to a server and return Promise, if \'application/x-www-form-urlencoded\'.', function(done){
         var req = Req('http://localhost:3000/api/user')
         .contentType('application/x-www-form-urlencoded');
         req.post({key: '54321'})
@@ -212,6 +212,18 @@ describe('req', function(){
         })
         .then(done, done);
       });
+
+      it('should post data to a server and return Promise, if a param is [Stream].', function(done){
+        var req = Req('http://localhost:3000/api/user');
+        var string = JSON.stringify(data[0]);
+        
+        req.post(es.readArray([string]))
+        .then(function(res){
+          res.body.should.deep.equal(data[0]);
+        })
+        .then(done, done);
+      });
+
     });
 
     describe('#put', function(){
