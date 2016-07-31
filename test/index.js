@@ -151,6 +151,16 @@ describe('req', function(){
       .on('error', done)
     });
   });
+  describe('#post', function(){
+    var req = Req('http://NOTEXISTINGHOST');
+    it('should reject with error. if server does not exist.', function(done){
+      req.post({})
+      .catch(function(err){
+        err.code.should.equal('ENOTFOUND');
+        done();
+      });
+    });
+  });
 
   describe('(json)', function(){
     describe('#post', function(){

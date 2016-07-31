@@ -205,7 +205,9 @@ Req.prototype.post = function(){
   var duplex = this.stream.post(args.url);
   return new Promise(function(resolve, reject){
     readable(args.data)
+    .on('error', reject)
     .pipe(duplex)
+    .on('error', reject)
     .pipe(es.map(resolve))
     .on('error', reject)
   })
@@ -230,7 +232,9 @@ Req.prototype.put = function(){
   var duplex = this.stream.put(args.url);
   return new Promise(function(resolve, reject){
     readable(args.data)
+    .on('error', reject)
     .pipe(duplex)
+    .on('error', reject)
     .pipe(es.map(resolve))
     .on('error', reject)
   })
@@ -254,7 +258,9 @@ Req.prototype.get = function(){
   var duplex = this.stream.get(args.url);
   return new Promise(function(resolve, reject){
     readable(args.data)
+    .on('error', reject)
     .pipe(duplex)
+    .on('error', reject)
     .pipe(es.map(resolve))
     .on('error', reject)
   })
@@ -276,7 +282,9 @@ Req.prototype.delete = function(){
   var duplex = this.stream.delete(args.url);
   return new Promise(function(resolve, reject){
     readable(args.data)
+    .on('error', reject)
     .pipe(duplex)
+    .on('error', reject)
     .pipe(es.map(resolve))
     .on('error', reject)
   })
